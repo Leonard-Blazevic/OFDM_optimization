@@ -5,7 +5,6 @@ import matlab.engine
 eng = matlab.engine.start_matlab()
 
 # Define basic constants for testing acf and zzb
-c0                  = 3e8
 fc1                 = 1.5e9
 fsc                 = 100e3
 Tperiod             = 1/fsc

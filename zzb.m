@@ -6,7 +6,7 @@ function [out_zzb] = zzb(snr_ratio_scalar, frequencyBins, signalPowerSpectrum, T
 % signalPowerSpectrum: vector of power values allocated to each pilot (i.e. 256 for f. band 1 + 256 for f. band 2)
 % NOTE: index 1 of frequencyBins corresponds to index 1 of specSig
 fun      =@(x) x.* (1-x/Tobs) .* ( 0.5*erfc((1/sqrt(2))*sqrt(snr_ratio_scalar * (1-real(acf(x, frequencyBins, signalPowerSpectrum)) ) )) ); % function to be integrated for ZZB
-out_zzb  = integral(fun, 0, Tobs, 'ArrayValued', true, 'AbsTol', 1e-24, 'RelTol', 0);
+out_zzb  = integral(fun, 0, Tobs, 'ArrayValued', true, 'AbsTol', 1e-14, 'RelTol', 0);
 
 end
 
