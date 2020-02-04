@@ -26,9 +26,10 @@ deltaT_vector               = matlab.double(deltaT_list)
 
 # Genetic algorithm constants
 NUMBER_OF_GENERATION        = 100
-POPULATION_SIZE             = 100
+POPULATION_SIZE             = 300
 BEST_PARENTS_FACTOR         = 10
 MAX_NUM_OF_MUTATION_SWAPS   = 15
+MUTATION_TRESHOLD           = 85
 
 
 # ------------------------------------------- Functions ------------------------------------------- #
@@ -183,7 +184,9 @@ for i in range(NUMBER_OF_GENERATION):
     bestCandidatesIndexes = np.argsort(fitnessArray)[0:(POPULATION_SIZE//BEST_PARENTS_FACTOR)]
     createNewPopulation()
 
-    for j in range(len(newPopulation)):
-        mutateCandidate(newPopulation[j], random.randrange(0, MAX_NUM_OF_MUTATION_SWAPS))
+    randNumber = random.randrange(0, 100)
+    if randNumber > MUTATION_TRESHOLD:
+        for j in range(len(newPopulation)):
+            mutateCandidate(newPopulation[j], random.randrange(0, MAX_NUM_OF_MUTATION_SWAPS))
 
     population[:] = newPopulation[:]
