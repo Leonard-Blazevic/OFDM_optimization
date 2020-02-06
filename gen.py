@@ -202,4 +202,4 @@ for genCnt[0] in range(NUMBER_OF_GENERATIONS):
 
     population[:] = newPopulation[:]
 
-plt.savefig("BestFoundPath.png")
+plt.savefig("BestFoundCandidate_gen.png")
