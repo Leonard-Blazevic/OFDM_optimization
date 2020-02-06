@@ -28,7 +28,7 @@ NUMBER_OF_GENERATIONS       = 10000
 POPULATION_SIZE             = 50
 BEST_PARENTS_FACTOR         = 5
 MAX_NUM_OF_MUTATION_SWAPS   = 64
-MUTATION_TRESHOLD           = 85
+MUTATION_TRESHOLD           = 15
 
 
 # ------------------------------------------- Functions ------------------------------------------- #
@@ -197,7 +197,7 @@ for genCnt[0] in range(NUMBER_OF_GENERATIONS):
 
     for j in range(POPULATION_SIZE):
         randNumber = random.randrange(0, 100)
-        if randNumber > MUTATION_TRESHOLD:
+        if randNumber > (100 - MUTATION_TRESHOLD):
             mutateCandidate(newPopulation[j], random.randrange(0, MAX_NUM_OF_MUTATION_SWAPS))
 
     population[:] = newPopulation[:]
