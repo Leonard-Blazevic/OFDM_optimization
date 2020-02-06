@@ -11,9 +11,9 @@ import time
 # OFDM constants
 NUM_OF_PILOTS_IN_FREQ_RANGE = 64
 FREQ_RANGE_WIDTH            = 0.4e9         # Hz
-CENTER_FREQS                = [1.4e9, 2e9]  # Hz
+CENTER_FREQS                = [1e9, 2e9]    # Hz
 NUMBER_OF_POINTS            = 10000         # Number of points for plotting the correlation function
-SNR                         = 2             # Signal to noise ratio of the channel
+SNR                         = 20            # Signal to noise ratio of the channel
 
 NUM_OF_FREQ_RANGES          = len(CENTER_FREQS)
 NUM_OF_PILOTS               = NUM_OF_PILOTS_IN_FREQ_RANGE * NUM_OF_FREQ_RANGES
@@ -24,10 +24,10 @@ deltaT_list                 = np.array(np.arange(-OBSERVATION_PERIOD/2, OBSERVAT
 deltaT_vector               = matlab.double(deltaT_list)
 
 # Genetic algorithm constants
-NUMBER_OF_GENERATIONS       = 1000
+NUMBER_OF_GENERATIONS       = 10000
 POPULATION_SIZE             = 100
-BEST_PARENTS_FACTOR         = 10
-MAX_NUM_OF_MUTATION_SWAPS   = 15
+BEST_PARENTS_FACTOR         = 5
+MAX_NUM_OF_MUTATION_SWAPS   = 64
 MUTATION_TRESHOLD           = 85
 
 
@@ -39,6 +39,7 @@ def plotCandidate(candidate, fitness, correlationVector):
     # Plot the correlation function
     plt.subplot(2, 1, 1)
     plt.cla()
+    plt.axis([1.1 * min(deltaT_list), 1.1 * max(deltaT_list), 0, 1.1 * max(correlationVector)])
     plt.title("ZZB = " + str(fitness) + "      Max distance error = " + str(maxDistanceError))
     plt.plot(deltaT_list, correlationVector)
     plt.ylabel('Correlation')
@@ -47,7 +48,7 @@ def plotCandidate(candidate, fitness, correlationVector):
     # Plot the frequency ranges
     plt.subplot(2, 1, 2)
     plt.cla()
-    plt.axis([CENTER_FREQS[0] - FREQ_RANGE_WIDTH/2 - FREQ_RANGE_WIDTH/10, CENTER_FREQS[NUM_OF_FREQ_RANGES - 1] + FREQ_RANGE_WIDTH/2 + FREQ_RANGE_WIDTH/10, 0, 0.03])
+    plt.axis([CENTER_FREQS[0] - FREQ_RANGE_WIDTH/2 - FREQ_RANGE_WIDTH/10, CENTER_FREQS[NUM_OF_FREQ_RANGES - 1] + FREQ_RANGE_WIDTH/2 + FREQ_RANGE_WIDTH/10, 0, 0.06])
     plt.stem(allPilotFreqs, candidate, bottom=0, use_line_collection=True)
     plt.ylabel('Power [mW]')
     plt.xlabel('Frequency [Hz]')
@@ -72,7 +73,7 @@ def findNewBest(fitnessArray, population, allTimeBestCandidateFitness, allTimeBe
     if(generationBestCandidateFitness < allTimeBestCandidateFitness):
         allTimeBestCandidate[:] = population[maxFitnessIndex][:]
         acf_vec_output = matlabEngine.acf(deltaT_vector, matlab_freqBins, matlab.double(population[maxFitnessIndex]), nargout=1)
-        acf_vec_output = [acf_vec_output[0][i].real for i in range(len(acf_vec_output[0]))]
+        acf_vec_output = [abs(acf_vec_output[0][i]) for i in range(len(acf_vec_output[0]))]
         plotCandidate(population[maxFitnessIndex], generationBestCandidateFitness, acf_vec_output)
 
         return generationBestCandidateFitness
@@ -84,18 +85,13 @@ def findNewBest(fitnessArray, population, allTimeBestCandidateFitness, allTimeBe
 def mutateCandidate(candidate, numOfMutations):
 
     for i in range(numOfMutations):
-        randomNum = random.randrange(0, 10)
         randIndex1 = random.randrange(NUM_OF_PILOTS)
         randIndex2 = random.randrange(NUM_OF_PILOTS)
 
-        if randomNum < 5:
-            temp = candidate[randIndex1]
-            candidate[randIndex1] = candidate[randIndex2]
-            candidate[randIndex2] = temp
-        else:
-            diff = candidate[randIndex1] - random.uniform(0, candidate[randIndex1])
-            candidate[randIndex1] -= diff
-            candidate[randIndex2] += diff
+        diff = random.uniform(0, candidate[randIndex1])
+
+        candidate[randIndex1] -= diff
+        candidate[randIndex2] += diff
 
 
 
@@ -160,7 +156,10 @@ for i in range(NUM_OF_FREQ_RANGES):
 matlab_freqBins = matlab.double(allPilotFreqs.tolist())
 
 # Create a population of random candidates
-population = [[1/NUM_OF_PILOTS for i in range(NUM_OF_PILOTS)] for j in range(POPULATION_SIZE)]
+population = [np.random.uniform(0,100,NUM_OF_PILOTS) for candidate in range(POPULATION_SIZE)]
+sums = [sum(population[j]) for j in range(POPULATION_SIZE)]
+population = [[population[j][i]/sums[j] for i in range(NUM_OF_PILOTS)] for j in range(POPULATION_SIZE)]
+
 newPopulation = [[0 for col in range(NUM_OF_PILOTS)] for row in range(POPULATION_SIZE)]
 
 # Create an empty fitness array
@@ -190,3 +189,5 @@ for i in range(NUMBER_OF_GENERATIONS):
             mutateCandidate(newPopulation[j], random.randrange(0, MAX_NUM_OF_MUTATION_SWAPS))
 
     population[:] = newPopulation[:]
+
+plt.savefig("BestFoundPath.png")
