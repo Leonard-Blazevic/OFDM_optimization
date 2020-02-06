@@ -26,9 +26,9 @@ deltaT_vector               = matlab.double(deltaT_list)
 # Genetic algorithm constants
 NUMBER_OF_GENERATIONS       = 10000
 POPULATION_SIZE             = 50
-BEST_PARENTS_FACTOR         = 5
+BEST_PARENTS_FACTOR         = 2
 MAX_NUM_OF_MUTATION_SWAPS   = 64
-MUTATION_TRESHOLD           = 15
+MUTATION_TRESHOLD           = 10
 
 
 # ------------------------------------------- Functions ------------------------------------------- #
@@ -53,7 +53,7 @@ def plotCandidate(candidate, fitness, correlationVector):
     # Plot the frequency ranges
     plt.subplot(2, 1, 2)
     plt.cla()
-    plt.axis([CENTER_FREQS[0] - FREQ_RANGE_WIDTH/2 - FREQ_RANGE_WIDTH/10, CENTER_FREQS[NUM_OF_FREQ_RANGES - 1] + FREQ_RANGE_WIDTH/2 + FREQ_RANGE_WIDTH/10, 0, 5/NUM_OF_PILOTS])
+    plt.axis([CENTER_FREQS[0] - FREQ_RANGE_WIDTH/2 - FREQ_RANGE_WIDTH/10, CENTER_FREQS[NUM_OF_FREQ_RANGES - 1] + FREQ_RANGE_WIDTH/2 + FREQ_RANGE_WIDTH/10, 0, 8/NUM_OF_PILOTS])
     plt.stem(allPilotFreqs, candidate, bottom=0, use_line_collection=True)
     plt.ylabel('Power [mW]')
     plt.xlabel('Frequency [Hz]')
@@ -136,18 +136,26 @@ def crossoverCandidates(parent1, parent2, newPopulationIndex):
 def createNewPopulation():
     newPopulation[:] = [[0 for col in range(NUM_OF_PILOTS)] for row in range(POPULATION_SIZE)]
 
+    # Take the best candidates from the current population
+    # (the number depends on the BEST_PARENTS_FACTOR => we take POPULATION_SIZE/BEST_PARENTS_FACTOR of best individuals)
+    # and create POPULATION_SIZE/BEST_PARENTS_FACTOR children using crossover
     for k in range(BEST_PARENTS_FACTOR//2):
         cntPopulation = k*(POPULATION_SIZE//BEST_PARENTS_FACTOR)*2
         random.shuffle(bestCandidatesIndexes)
 
         for j in range((POPULATION_SIZE//BEST_PARENTS_FACTOR) - 1):
             crossoverCandidates(population[bestCandidatesIndexes[j]], population[bestCandidatesIndexes[j + 1]], cntPopulation)
-            crossoverCandidates(population[bestCandidatesIndexes[j]], population[bestCandidatesIndexes[j + 1]], cntPopulation + 1)
-            cntPopulation += 2
+            cntPopulation += 1
 
         crossoverCandidates(population[bestCandidatesIndexes[(POPULATION_SIZE//BEST_PARENTS_FACTOR) - 1]], population[bestCandidatesIndexes[0]], cntPopulation)
-        crossoverCandidates(population[bestCandidatesIndexes[(POPULATION_SIZE//BEST_PARENTS_FACTOR) - 1]], population[bestCandidatesIndexes[0]], cntPopulation + 1)
-        cntPopulation += 2
+        cntPopulation += 1
+
+    # Fill the rest of the new population with the best candidates from the current population
+    bestCandidatesIndexesLocal = np.argsort(fitnessArray)[0:(POPULATION_SIZE - (POPULATION_SIZE//BEST_PARENTS_FACTOR))]
+    cntBestIndexes = 0
+    for k in range(cntPopulation, POPULATION_SIZE):
+        newPopulation[k][:] = population[bestCandidatesIndexesLocal[cntBestIndexes]][:]
+        cntBestIndexes += 1
 
 
 
@@ -161,11 +169,9 @@ for i in range(NUM_OF_FREQ_RANGES):
 matlab_freqBins = matlab.double(allPilotFreqs.tolist())
 
 # Create a population of random candidates
-# population = [np.random.uniform(0,100,NUM_OF_PILOTS) for candidate in range(POPULATION_SIZE)]
-# sums = [sum(population[j]) for j in range(POPULATION_SIZE)]
-# population = [[population[j][i]/sums[j] for i in range(NUM_OF_PILOTS)] for j in range(POPULATION_SIZE)]
-
-population = [[1/NUM_OF_PILOTS for i in range(NUM_OF_PILOTS)] for j in range(POPULATION_SIZE)]
+population = [np.random.uniform(0,100,NUM_OF_PILOTS) for candidate in range(POPULATION_SIZE)]
+sums = [sum(population[j]) for j in range(POPULATION_SIZE)]
+population = [[population[j][i]/sums[j] for i in range(NUM_OF_PILOTS)] for j in range(POPULATION_SIZE)]
 newPopulation = [[0 for col in range(NUM_OF_PILOTS)] for row in range(POPULATION_SIZE)]
 
 # Create an empty fitness array
@@ -192,7 +198,9 @@ genCnt = [0]
 for genCnt[0] in range(NUMBER_OF_GENERATIONS):
     calcFitness(population, fitnessArray)
     bestCandidateFitness = findNewBest(fitnessArray, population, bestCandidateFitness, bestCandidate)
+
     bestCandidatesIndexes = np.argsort(fitnessArray)[0:(POPULATION_SIZE//BEST_PARENTS_FACTOR)]
+
     createNewPopulation()
 
     for j in range(POPULATION_SIZE):
