@@ -9,24 +9,23 @@ import time
 
 # ------------------------------------------- Constants ------------------------------------------- #
 # OFDM constants
-NUM_OF_PILOTS_IN_FREQ_RANGE = 128
-NUM_OF_MUTATIONS            = 4
-FREQ_RANGE_WIDTH            = 400   # MHz
-CENTER_FREQS                = [1400, 2000] # MHz
+NUM_OF_PILOTS_IN_FREQ_RANGE = 64
+FREQ_RANGE_WIDTH            = 0.4e9         # Hz
+CENTER_FREQS                = [1.4e9, 2e9]  # Hz
+NUMBER_OF_POINTS            = 10000         # Number of points for plotting the correlation function
+SNR                         = 2             # Signal to noise ratio of the channel
 
 NUM_OF_FREQ_RANGES          = len(CENTER_FREQS)
 NUM_OF_PILOTS               = NUM_OF_PILOTS_IN_FREQ_RANGE * NUM_OF_FREQ_RANGES
-
 CARRIER_FREQUENCY           = FREQ_RANGE_WIDTH / NUM_OF_PILOTS_IN_FREQ_RANGE
 CARRIER_PERIOD              = 1/CARRIER_FREQUENCY
-SNR                         = 0.01
-OBSERVATION_PERIOD          = CARRIER_PERIOD/8
-deltaT_list                 = np.array(np.arange(-CARRIER_PERIOD/2, CARRIER_PERIOD/2 + CARRIER_PERIOD/500, CARRIER_PERIOD/500)).tolist()
+OBSERVATION_PERIOD          = CARRIER_PERIOD/10
+deltaT_list                 = np.array(np.arange(-OBSERVATION_PERIOD/2, OBSERVATION_PERIOD/2 + OBSERVATION_PERIOD/NUMBER_OF_POINTS, OBSERVATION_PERIOD/NUMBER_OF_POINTS)).tolist()
 deltaT_vector               = matlab.double(deltaT_list)
 
 # Genetic algorithm constants
-NUMBER_OF_GENERATION        = 100
-POPULATION_SIZE             = 300
+NUMBER_OF_GENERATIONS       = 1000
+POPULATION_SIZE             = 100
 BEST_PARENTS_FACTOR         = 10
 MAX_NUM_OF_MUTATION_SWAPS   = 15
 MUTATION_TRESHOLD           = 85
@@ -35,19 +34,25 @@ MUTATION_TRESHOLD           = 85
 # ------------------------------------------- Functions ------------------------------------------- #
 def plotCandidate(candidate, fitness, correlationVector):
 
+    maxDistanceError = math.sqrt(fitness) * 3e8
+
+    # Plot the correlation function
     plt.subplot(2, 1, 1)
     plt.cla()
-    plt.title("Fitness = " + str(fitness))
+    plt.title("ZZB = " + str(fitness) + "      Max distance error = " + str(maxDistanceError))
     plt.plot(deltaT_list, correlationVector)
     plt.ylabel('Correlation')
     plt.xlabel('Time')
 
+    # Plot the frequency ranges
     plt.subplot(2, 1, 2)
     plt.cla()
-    plt.bar(allPilotFreqs, candidate)
+    plt.axis([CENTER_FREQS[0] - FREQ_RANGE_WIDTH/2 - FREQ_RANGE_WIDTH/10, CENTER_FREQS[NUM_OF_FREQ_RANGES - 1] + FREQ_RANGE_WIDTH/2 + FREQ_RANGE_WIDTH/10, 0, 0.03])
+    plt.stem(allPilotFreqs, candidate, bottom=0, use_line_collection=True)
     plt.ylabel('Power [mW]')
-    plt.xlabel('Frequency [MHz]')
+    plt.xlabel('Frequency [Hz]')
 
+    # Show the graph
     plt.draw()
     plt.pause(0.01)
 
@@ -63,9 +68,6 @@ def findNewBest(fitnessArray, population, allTimeBestCandidateFitness, allTimeBe
 
     generationBestCandidateFitness = min(fitnessArray)
     maxFitnessIndex = fitnessArray.index(generationBestCandidateFitness)
-
-    print("All-time best = " + str(allTimeBestCandidateFitness) + " sum = " + str(sum(allTimeBestCandidate)))
-    print("Generation best = " + str(generationBestCandidateFitness) + " sum = " + str(sum(population[maxFitnessIndex])))
 
     if(generationBestCandidateFitness < allTimeBestCandidateFitness):
         allTimeBestCandidate[:] = population[maxFitnessIndex][:]
@@ -158,9 +160,7 @@ for i in range(NUM_OF_FREQ_RANGES):
 matlab_freqBins = matlab.double(allPilotFreqs.tolist())
 
 # Create a population of random candidates
-population = [np.random.uniform(0,100,NUM_OF_PILOTS) for candidate in range(POPULATION_SIZE)]
-sums = [sum(population[j]) for j in range(POPULATION_SIZE)]
-population = [[population[j][i]/sums[j] for i in range(NUM_OF_PILOTS)] for j in range(POPULATION_SIZE)]
+population = [[1/NUM_OF_PILOTS for i in range(NUM_OF_PILOTS)] for j in range(POPULATION_SIZE)]
 newPopulation = [[0 for col in range(NUM_OF_PILOTS)] for row in range(POPULATION_SIZE)]
 
 # Create an empty fitness array
@@ -178,15 +178,15 @@ plt.figure(figsize=(40, 40))
 matlabEngine = matlab.engine.start_matlab()
 
 # Run the evolution
-for i in range(NUMBER_OF_GENERATION):
+for i in range(NUMBER_OF_GENERATIONS):
     calcFitness(population, fitnessArray)
     bestCandidateFitness = findNewBest(fitnessArray, population, bestCandidateFitness, bestCandidate)
     bestCandidatesIndexes = np.argsort(fitnessArray)[0:(POPULATION_SIZE//BEST_PARENTS_FACTOR)]
     createNewPopulation()
 
-    randNumber = random.randrange(0, 100)
-    if randNumber > MUTATION_TRESHOLD:
-        for j in range(len(newPopulation)):
+    for j in range(POPULATION_SIZE):
+        randNumber = random.randrange(0, 100)
+        if randNumber > MUTATION_TRESHOLD:
             mutateCandidate(newPopulation[j], random.randrange(0, MAX_NUM_OF_MUTATION_SWAPS))
 
     population[:] = newPopulation[:]
