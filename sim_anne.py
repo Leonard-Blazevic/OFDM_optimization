@@ -24,9 +24,9 @@ deltaT_list                 = np.array(np.arange(-OBSERVATION_PERIOD/2, OBSERVAT
 deltaT_vector               = matlab.double(deltaT_list)
 
 # Simmulated annealing algorithm constants
-INITIAL_TEMP                = 10000
+INITIAL_TEMP                = 100
 FINAL_TEMP                  = 0.00001
-MAX_NUM_OF_MUTATION_SWAPS   = 64
+MAX_NUM_OF_MUTATION_SWAPS   = 4
 COOLING_CONST               = 0.999
 
 
@@ -52,7 +52,7 @@ def plotCandidate(candidate, fitness, correlationVector):
     # Plot the frequency ranges
     plt.subplot(2, 1, 2)
     plt.cla()
-    plt.axis([CENTER_FREQS[0] - FREQ_RANGE_WIDTH/2 - FREQ_RANGE_WIDTH/10, CENTER_FREQS[NUM_OF_FREQ_RANGES - 1] + FREQ_RANGE_WIDTH/2 + FREQ_RANGE_WIDTH/10, 0, 5/NUM_OF_PILOTS])
+    plt.axis([CENTER_FREQS[0] - FREQ_RANGE_WIDTH/2 - FREQ_RANGE_WIDTH/10, CENTER_FREQS[NUM_OF_FREQ_RANGES - 1] + FREQ_RANGE_WIDTH/2 + FREQ_RANGE_WIDTH/10, 0, 8/NUM_OF_PILOTS])
     plt.stem(allPilotFreqs, candidate, bottom=0, use_line_collection=True)
     plt.ylabel('Power [mW]')
     plt.xlabel('Frequency [Hz]')
@@ -94,6 +94,8 @@ matlab_freqBins = matlab.double(allPilotFreqs.tolist())
 # Create an initial solution
 currentCandidate = [1/NUM_OF_PILOTS for i in range(NUM_OF_PILOTS)]
 newCandidate = [0 for i in range(NUM_OF_PILOTS)]
+bestCandidate = [0 for i in range(NUM_OF_PILOTS)]
+bestCandidateFitness = 100000
 
 # Create an empty fitness array
 currentCandidateFitness = 0
@@ -138,7 +140,15 @@ while currentTemperature > FINAL_TEMP:
             acf_vec_output = [acf_vec_output[0][i].real for i in range(len(acf_vec_output[0]))]
 
             plotCandidate(currentCandidate, currentCandidateFitness, acf_vec_output)
+    
+    if currentCandidateFitness < bestCandidateFitness:
+        bestCandidate[:] = currentCandidate[:]
+        bestCandidateFitness = currentCandidateFitness
 
     currentTemperature *= COOLING_CONST
 
+# Save the best candidate found
+acf_vec_output = matlabEngine.acf(deltaT_vector, matlab_freqBins, matlab.double(bestCandidate), nargout=1)
+acf_vec_output = [acf_vec_output[0][i].real for i in range(len(acf_vec_output[0]))]
+plotCandidate(bestCandidate, bestCandidateFitness, acf_vec_output)
 plt.savefig("BestFoundCandidate_sim_anne.png")
