@@ -1,6 +1,6 @@
 from itertools import product
 from sys import stdout as out
-from mip import *
+from mip import Model, xsum, minimize, BINARY, INTEGER, maximize, OptimizationStatus
 
 import sys
 import os
@@ -30,13 +30,11 @@ deltaT_vector               = matlab.double(deltaT_list)
 # ------------------------------------------- Functions ------------------------------------------- #
 def plotCandidate(candidate, fitness, correlationVector):
 
-    maxDistanceError = math.sqrt(fitness) * 3e8
-
     # Plot the correlation function
     plt.subplot(2, 1, 1)
     plt.cla()
     plt.axis([1.1 * min(deltaT_list), 1.1 * max(deltaT_list), 0, 1.1 * max(correlationVector)])
-    plt.title("ZZB = " + str(fitness) + "        Max distance error = " + str(round(maxDistanceError * 1000, 3)) + " mm\n")
+    plt.title("CRLB = " + str(fitness) + "\n")
     plt.plot(deltaT_list, correlationVector)
     plt.ylabel('Correlation')
     plt.xlabel('Time')
@@ -53,14 +51,8 @@ def plotCandidate(candidate, fitness, correlationVector):
     plt.draw()
     plt.pause(0.01)
 
-
-
-def calcFitness(candidate):
-    fitness = 0
-    for i in range(len(candidate)):
-        fitness += candidate[i] * MIN_POWER_CHUNK * allPilotFreqs[i]
-
-    return fitness
+def cramerRaoLowerBoundInverse():
+        return (8 * (math.pi)**2 * xsum(x[i] * allPilotFreqs[i] for i in pilotIndexes) * SNR)
 
 
 # ------------------------------------------- Main ------------------------------------------------ #
@@ -75,6 +67,8 @@ for i in range(NUM_OF_FREQ_RANGES):
 
 matlab_freqBins = matlab.double(allPilotFreqs.tolist())
 
+pilotIndexes = set(range(NUM_OF_PILOTS))
+
 # Inititalze the model
 model = Model()
 
@@ -83,7 +77,9 @@ model = Model()
 x = [model.add_var(var_type=INTEGER, lb=0, ub=10000000) for j in range(NUM_OF_PILOTS)]
 
 # Assign an objective function to the model
-model.objective = minimize(calcFitness(x))
+# We want to minimize the Cramer-Rao lower bound, but since it contains 1 / optimizationVariable
+# We maximize 1 / cramerRaoLowerBoundInverse
+model.objective = maximize(cramerRaoLowerBoundInverse())
 
 # Constraint => Sum of all powers has to be equal to the total available power
 model += xsum((x[j] * MIN_POWER_CHUNK) for j in range(NUM_OF_PILOTS)) == TOTAL_POWER
