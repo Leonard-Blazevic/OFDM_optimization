@@ -24,16 +24,16 @@ deltaT_list                 = np.array(np.arange(-OBSERVATION_PERIOD/2, OBSERVAT
 deltaT_vector               = matlab.double(deltaT_list)
 
 # Simmulated annealing algorithm constants
-INITIAL_TEMP                = 100
-FINAL_TEMP                  = 0.00001
-MAX_NUM_OF_MUTATION_SWAPS   = 4
+INITIAL_TEMP                = 1
+FINAL_TEMP                  = 0.00000001
+MAX_NUM_OF_MUTATION_SWAPS   = 24
 COOLING_CONST               = 0.999
 
 
 # ------------------------------------------- Functions ------------------------------------------- #
 def plotCandidate(candidate, fitness, correlationVector):
 
-    maxDistanceError = math.sqrt(fitness) * 3e8
+    maxDistanceError = fitness
 
     if initialError[0] == 0:
         initialError[0] = maxDistanceError
@@ -44,7 +44,7 @@ def plotCandidate(candidate, fitness, correlationVector):
     plt.subplot(2, 1, 1)
     plt.cla()
     plt.axis([1.1 * min(deltaT_list), 1.1 * max(deltaT_list), 0, 1.1 * max(correlationVector)])
-    plt.title("Temperature " + str(currentTemperature) + "\nZZB = " + str(fitness) + "        Max distance error = " + str(round(maxDistanceError * 1000, 3)) + " mm        Improvement = " + str(improvementPercentage) + " %\n")
+    plt.title("Temperature " + str(currentTemperature) + "\nZZB = " + str(fitness) + "        Max distance error = " + str(round(maxDistanceError, 3)) + " mm        Improvement = " + str(improvementPercentage) + " %\n")
     plt.plot(deltaT_list, correlationVector)
     plt.ylabel('Correlation')
     plt.xlabel('Time')
@@ -65,7 +65,8 @@ def plotCandidate(candidate, fitness, correlationVector):
 
 def calcFitness(candidate):
 
-    return matlabEngine.zzb(float(SNR), matlab_freqBins, matlab.double(candidate), float(OBSERVATION_PERIOD), nargout=1)
+    # fitness defined as distance error in milimeters
+    return math.sqrt(matlabEngine.zzb(float(SNR), matlab_freqBins, matlab.double(candidate), float(OBSERVATION_PERIOD), nargout=1)) * 3e8 * 1000
 
 
 
@@ -131,7 +132,7 @@ while currentTemperature > FINAL_TEMP:
         plotCandidate(currentCandidate, currentCandidateFitness, acf_vec_output)
     else:
         p = math.exp(-(newCandidateFitness - currentCandidateFitness) / currentTemperature)
-        randomTreshold = random.randrange(20, 100) / 100
+        randomTreshold = random.randrange(1, 100) / 100
         if p > randomTreshold:
             currentCandidate[:] = newCandidate[:]
             currentCandidateFitness = newCandidateFitness
